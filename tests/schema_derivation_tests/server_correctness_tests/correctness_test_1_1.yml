@@ -1,3 +1,4 @@
+catalog_schema_file: correctness_catalog_1.yml
 current_db: test
 pipeline: [ { "$match" : { "obj.obj.obj.str" : { "$not" : { "$gt" : "microchip" } } } }, { "$sort" : { "_id" : 1 } }, { "$sortByCount" : { "$regexFindAll" : { "input" : "superstructure Personal Loan Account", "regex" : "Virgin Islands, British|protocol|District|utilize", "options" : "" } } } ]
 result_set_schema:

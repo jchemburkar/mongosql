@@ -5,6 +5,8 @@ use std::{
     path::Path,
 };
 
+use crate::SchemaDerivationYamlTestFile;
+
 // tests we handle
 const QUERY_TEST: &str = "query_tests";
 const E2E_TEST: &str = "e2e_tests";
@@ -56,6 +58,8 @@ pub enum ProcessorType {
     Error,
     // index usage tests
     Index,
+    // schema derivation tests
+    SchemaDerivation,
     // unhandled test types
     Unhandled,
     // unknown test types
@@ -72,10 +76,9 @@ impl From<&Cow<'_, str>> for ProcessorType {
             Self::E2E
         } else if s.contains(ERROR_TEST) {
             Self::Error
-        } else if s.contains(REWRITE_TEST)
-            || s.contains(TYPE_CONSTRAINT_TESTS)
-            || s.contains(SCHEMA_DERIVATION_TESTS)
-        {
+        } else if s.contains(SCHEMA_DERIVATION_TESTS) {
+            Self::SchemaDerivation
+        } else if s.contains(REWRITE_TEST) || s.contains(TYPE_CONSTRAINT_TESTS) {
             Self::Unhandled
         } else {
             Self::None
@@ -117,6 +120,9 @@ impl Processor {
             }
             ProcessorType::Index => {
                 self.process_index();
+            }
+            ProcessorType::SchemaDerivation => {
+                self.process_schema_derivation();
             }
             ProcessorType::Unhandled => {}
             ProcessorType::None => panic!("encountered an unknown test type"),
@@ -212,6 +218,41 @@ impl Processor {
         }
     }
 
+    fn process_schema_derivation(&mut self) {
+        self.write_mod_entry();
+        let mut write_file = write_test_file(&self.file_name, &self.out_dir);
+        self.write_schema_derivation_header(&write_file);
+        let test_file = crate::parse_schema_derivation_yaml_file(self.entry.path()).unwrap();
+        match test_file {
+            SchemaDerivationYamlTestFile::Single(query_correctness_test) => {
+                write!(
+                    write_file,
+                    include_str!("./templates/schema_derivation_test_body_template"),
+                    name = &self.file_name.replace(".yml", ""),
+                    index = 0,
+                    feature = "schema_derivation",
+                    allow_order_by_missing = true,
+                )
+                .unwrap();
+            }
+            SchemaDerivationYamlTestFile::Multiple(spec_query_test) => {
+                for (index, test) in spec_query_test.tests.iter().enumerate() {
+                    let description = test.description.clone().expect("missing description for spec query schema derivation test");
+                    write!(
+                        write_file,
+                        include_str!("./templates/schema_derivation_test_body_template"),
+                        name = sanitize_description(description.as_str()),
+                        index = index,
+                        feature = "schema_derivation",
+                        allow_order_by_missing = true,
+                    )
+                    .unwrap();
+                }
+            }
+        }
+        
+    }
+
     #[allow(clippy::format_in_format_args)]
     // we want the debug version of the canonicalized path to play nicely
     // with the template
@@ -219,6 +260,21 @@ impl Processor {
         write!(
             file,
             include_str!("./templates/query_test_header_template"),
+            path = format!(
+                "{:?}",
+                self.entry.path().canonicalize().unwrap().to_string_lossy()
+            ),
+        )
+        .unwrap();
+    }
+
+    #[allow(clippy::format_in_format_args)]
+    // we want the debug version of the canonicalized path to play nicely
+    // with the template
+    fn write_schema_derivation_header(&self, mut file: &File) {
+        write!(
+            file,
+            include_str!("./templates/schema_derivation_test_header_template"),
             path = format!(
                 "{:?}",
                 self.entry.path().canonicalize().unwrap().to_string_lossy()
