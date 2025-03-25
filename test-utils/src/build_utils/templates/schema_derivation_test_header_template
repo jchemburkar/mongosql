@@ -20,12 +20,12 @@ use test_utils::*;
 
 static INIT: Once = Once::new();
 
-pub fn initialize_test() -> (&'static Client, &'static QueryYamlTestFile) {{
+pub fn initialize_test() -> &'static SchemaDerivationYamlTestFile {{
     static mut TEST_FILE: Option<SchemaDerivationYamlTestFile> = None;
 
     INIT.call_once(|| {{
         unsafe {{
-            TEST_FILE = Some(parse_query_yaml_file(PathBuf::from({path})).unwrap());
+            TEST_FILE = Some(parse_schema_derivation_yaml_file(PathBuf::from({path})).unwrap());
         }}
     }});
 

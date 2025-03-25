@@ -8,8 +8,9 @@ use super::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SchemaDerivationYamlTestFile {
-    Single(SchemaDerivationTest),
     Multiple(SpecQuerySchemaDerivationTestFile),
+    #[serde(untagged)]
+    Single(SchemaDerivationTest),
 }
 
 

@@ -12,12 +12,14 @@ const QUERY_TEST: &str = "query_tests";
 const E2E_TEST: &str = "e2e_tests";
 const INDEX_TEST: &str = "index_usage_tests";
 const ERROR_TEST: &str = "errors";
+const SCHEMA_DERIVATION_TESTS: &str = "schema_derivation_tests";
 
 // tests we don't handle
 const REWRITE_TEST: &str = "rewrite_tests";
 const TYPE_CONSTRAINT_TESTS: &str = "type_constraint_tests";
-// SQL-2677: implement schema derivation test runner
-const SCHEMA_DERIVATION_TESTS: &str = "schema_derivation_tests";
+
+// we also want to filter out hte correctness catalogs
+const CORRECTNESS_CATALOG: &str = "correctness_catalog";
 
 /// sanitize_description sanitizes test names such that they may be used as function names in generated test cases
 fn sanitize_description(description: &str) -> String {
@@ -76,10 +78,10 @@ impl From<&Cow<'_, str>> for ProcessorType {
             Self::E2E
         } else if s.contains(ERROR_TEST) {
             Self::Error
+        } else if s.contains(REWRITE_TEST) || s.contains(TYPE_CONSTRAINT_TESTS) || s.contains(CORRECTNESS_CATALOG) {
+            Self::Unhandled
         } else if s.contains(SCHEMA_DERIVATION_TESTS) {
             Self::SchemaDerivation
-        } else if s.contains(REWRITE_TEST) || s.contains(TYPE_CONSTRAINT_TESTS) {
-            Self::Unhandled
         } else {
             Self::None
         }
@@ -224,14 +226,12 @@ impl Processor {
         self.write_schema_derivation_header(&write_file);
         let test_file = crate::parse_schema_derivation_yaml_file(self.entry.path()).unwrap();
         match test_file {
-            SchemaDerivationYamlTestFile::Single(query_correctness_test) => {
+            SchemaDerivationYamlTestFile::Single(_) => {
                 write!(
                     write_file,
                     include_str!("./templates/schema_derivation_test_body_template"),
-                    name = &self.file_name.replace(".yml", ""),
+                    name = &self.file_name.replace(".rs", ""),
                     index = 0,
-                    feature = "schema_derivation",
-                    allow_order_by_missing = true,
                 )
                 .unwrap();
             }
@@ -242,9 +242,7 @@ impl Processor {
                         write_file,
                         include_str!("./templates/schema_derivation_test_body_template"),
                         name = sanitize_description(description.as_str()),
-                        index = index,
-                        feature = "schema_derivation",
-                        allow_order_by_missing = true,
+                        index = index
                     )
                     .unwrap();
                 }
