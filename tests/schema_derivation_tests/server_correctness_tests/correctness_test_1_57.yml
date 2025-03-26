@@ -1,3 +1,4 @@
+catalog_schema_file: correctness_catalog_1.yml
 current_db: test
 pipeline: [ { "$sort" : { "_id" : 1 } }, { "$sortByCount" : { "$abs" : { "$ln" : {"$numberLong": "6"} } } } ]
 result_set_schema:

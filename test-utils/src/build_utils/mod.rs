@@ -78,7 +78,10 @@ impl From<&Cow<'_, str>> for ProcessorType {
             Self::E2E
         } else if s.contains(ERROR_TEST) {
             Self::Error
-        } else if s.contains(REWRITE_TEST) || s.contains(TYPE_CONSTRAINT_TESTS) || s.contains(CORRECTNESS_CATALOG) {
+        } else if s.contains(REWRITE_TEST)
+            || s.contains(TYPE_CONSTRAINT_TESTS)
+            || s.contains(CORRECTNESS_CATALOG)
+        {
             Self::Unhandled
         } else if s.contains(SCHEMA_DERIVATION_TESTS) {
             Self::SchemaDerivation
@@ -237,7 +240,10 @@ impl Processor {
             }
             SchemaDerivationYamlTestFile::Multiple(spec_query_test) => {
                 for (index, test) in spec_query_test.tests.iter().enumerate() {
-                    let description = test.description.clone().expect("missing description for spec query schema derivation test");
+                    let description = test
+                        .description
+                        .clone()
+                        .expect("missing description for spec query schema derivation test");
                     write!(
                         write_file,
                         include_str!("./templates/schema_derivation_test_body_template"),
@@ -248,7 +254,6 @@ impl Processor {
                 }
             }
         }
-        
     }
 
     #[allow(clippy::format_in_format_args)]

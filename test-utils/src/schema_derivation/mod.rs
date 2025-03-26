@@ -13,7 +13,6 @@ pub enum SchemaDerivationYamlTestFile {
     Single(SchemaDerivationTest),
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpecQuerySchemaDerivationTestFile {
     pub catalog_schema: Option<BTreeMap<String, BTreeMap<String, mongosql::json_schema::Schema>>>,

@@ -66,7 +66,7 @@ impl From<Namespace> for String {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct ResultSetState<'a> {
+pub struct ResultSetState<'a> {
     pub catalog: &'a BTreeMap<Namespace, Schema>,
     pub variables: BTreeMap<String, Schema>,
     pub result_set_schema: Schema,
@@ -79,7 +79,10 @@ pub(crate) struct ResultSetState<'a> {
     pub null_behavior: Satisfaction,
 }
 
-fn derive_schema_for_pipeline(pipeline: Vec<Stage>, state: &mut ResultSetState) -> Result<Schema> {
+pub fn derive_schema_for_pipeline(
+    pipeline: Vec<Stage>,
+    state: &mut ResultSetState,
+) -> Result<Schema> {
     pipeline.iter().try_for_each(|stage| {
         state.result_set_schema = stage.derive_schema(state)?;
         Ok(())
