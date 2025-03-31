@@ -1123,6 +1123,8 @@ version = "0.1.0"
 dependencies = [
  "mongodb",
  "mongosql",
+ "schema_derivation",
+ "serde_yaml",
  "test-utils",
 ]
 
