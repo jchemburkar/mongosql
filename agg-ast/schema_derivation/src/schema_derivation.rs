@@ -79,7 +79,7 @@ pub struct ResultSetState<'a> {
     pub null_behavior: Satisfaction,
 }
 
-fn derive_schema_for_pipeline(
+pub fn derive_schema_for_pipeline(
     pipeline: Vec<Stage>,
     current_collection: Option<String>,
     state: &mut ResultSetState,
@@ -1066,7 +1066,7 @@ impl DeriveSchema for TaggedOperator {
                         .map_err(|_| Error::InvalidConvertTypeValue(decimal_string))?;
                     Ok(schema_for_type_numeric(decimal_as_double as i32))
                 }
-                _ => unreachable!(),
+                _ => unreachable!("{:?}", c),
             },
             TaggedOperator::DenseRank(_)
             | TaggedOperator::DocumentNumber(_)
@@ -2277,6 +2277,7 @@ impl DeriveSchema for UntaggedOperator {
                     schema => schema
                 })
             }
+            UntaggedOperatorName::Literal => self.args[0].derive_schema(state),
             _ => Err(Error::InvalidUntaggedOperator(self.op.into())),
         }
     }

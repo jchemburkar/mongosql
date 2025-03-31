@@ -7,9 +7,9 @@ use std::{collections::BTreeMap, fs, io::Read, path::PathBuf};
 use super::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SchemaDerivationYamlTestFile {
     Multiple(SpecQuerySchemaDerivationTestFile),
-    #[serde(untagged)]
     Single(SchemaDerivationTest),
 }
 
@@ -24,6 +24,7 @@ pub struct SchemaDerivationTest {
     pub description: Option<String>,
     pub catalog_schema_file: Option<String>,
     pub current_db: Option<String>,
+    pub current_collection: Option<String>,
     pub pipeline: Vec<Stage>,
     pub result_set_schema: json_schema::Schema,
 }
