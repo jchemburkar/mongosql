@@ -1956,8 +1956,17 @@ impl DeriveSchema for UntaggedOperator {
             }
             UntaggedOperatorName::ArrayElemAt => {
                 let input_schema = self.args[0].derive_schema(state)?;
-                match input_schema {
+                match input_schema.clone() {
                     Schema::Array(a) => Ok(a.as_ref().clone()),
+                    ao @ Schema::AnyOf(_) => {
+                        let array_schema = ao.intersection(&Schema::Array(Box::new(Schema::Any)));
+                        let null_schema = ao.intersection(&NULLISH.clone());
+                        if array_schema == Schema::Unsat && null_schema == Schema::Unsat {
+                            Err(Error::InvalidType(input_schema, 0usize))
+                        } else {
+                            Ok(Schema::simplify(&null_schema.union(&array_schema)))
+                        }
+                    }
                     _ => {
                         if input_schema.satisfies(&NULLISH_OR_UNDEFINED) == Satisfaction::Must {
                             Ok(Schema::Atomic(Atomic::Null))
