@@ -575,9 +575,9 @@ impl DeriveSchema for Stage {
                 Some(ns) => {
                     let from_ns = from_to_ns(ns, state);
                     state
-                    .catalog
-                    .get(&from_ns)
-                    .ok_or_else(|| Error::UnknownReference(from_ns.into()))?
+                        .catalog
+                        .get(&from_ns)
+                        .ok_or_else(|| Error::UnknownReference(from_ns.into()))?
                 }
             };
             variables.extend(state.variables.clone());
