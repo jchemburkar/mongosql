@@ -435,6 +435,7 @@ impl DeriveSchema for Stage {
             project: &ProjectStage,
             state: &mut ResultSetState,
         ) -> Result<Schema> {
+            println!("{:?}", state.result_set_schema);
             // If this is an exclusion $project, we can remove the fields from the schema and
             // return
             if project.items.iter().all(|(k, p)| {
@@ -461,7 +462,6 @@ impl DeriveSchema for Stage {
                 .filter(|(_k, p)| !matches!(p, ProjectItem::Exclusion))
                 .map(|(k, p)| match p {
                     ProjectItem::Assignment(e) => {
-                        // println!("assignment: {:?}", state.result_set_schema);
                         let field_schema = e.derive_schema(state)?;
                         Ok((k.to_string(), field_schema))
                     }
@@ -1910,7 +1910,6 @@ impl DeriveSchema for UntaggedOperator {
                 let input_schema = get_input_schema(&args, state)?;
                 if input_schema.satisfies(&INTEGER_LONG_OR_NULLISH) == Satisfaction::Must {
                     // If both are (nullable) Ints or Longs, the result is (nullable) Long
-                    println!("{:?}", args);
                     handle_null_satisfaction(args, state, INTEGRAL.clone())
                 } else {
                     get_decimal_double_or_nullish(args, state)

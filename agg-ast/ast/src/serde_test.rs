@@ -2702,7 +2702,7 @@ mod expression_test {
                     Expression::Ref(Ref::FieldRef("score".to_string()))
                 ])),
                 sort_by: Box::new(Expression::Document(map!(
-                    "score".to_string() => Expression::Literal(LiteralValue::Int64(-1))
+                    "score".to_string() => Expression::Literal(LiteralValue::Int32(-1))
                 )))
             })),
             input = r#"expr: { $bottom: {
@@ -2719,7 +2719,7 @@ mod expression_test {
                     Expression::Ref(Ref::FieldRef("score".to_string()))
                 ])),
                 sort_by: Box::new(Expression::Document(map!(
-                    "score".to_string() => Expression::Literal(LiteralValue::Int64(-1))
+                    "score".to_string() => Expression::Literal(LiteralValue::Int32(-1))
                 ))),
                 n: 3,
             })),
@@ -2806,7 +2806,7 @@ mod expression_test {
                     Expression::Ref(Ref::FieldRef("score".to_string()))
                 ])),
                 sort_by: Box::new(Expression::Document(map!(
-                    "score".to_string() => Expression::Literal(LiteralValue::Int64(-1))
+                    "score".to_string() => Expression::Literal(LiteralValue::Int32(-1))
                 )))
             })),
             input = r#"expr: { $top: {
@@ -2823,7 +2823,7 @@ mod expression_test {
                     Expression::Ref(Ref::FieldRef("score".to_string()))
                 ])),
                 sort_by: Box::new(Expression::Document(map!(
-                    "score".to_string() => Expression::Literal(LiteralValue::Int64(-1))
+                    "score".to_string() => Expression::Literal(LiteralValue::Int32(-1))
                 ))),
                 n: 3,
             })),
