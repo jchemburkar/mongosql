@@ -148,6 +148,14 @@ fn get_schema_for_path_mut_aux(
     };
     match schema {
         Schema::Document(d) => {
+            if !d.keys.contains_key(&field) && d.additional_properties {
+                if field_index + 1 == path.len() {
+                    d.keys.insert(field.clone(), Schema::Any);
+                } else {
+                    d.keys
+                        .insert(field.clone(), Schema::Document(schema::Document::any()));
+                }
+            }
             get_schema_for_path_mut_aux(d.keys.get_mut(&field)?, path, None, field_index + 1)
         }
         Schema::Array(s) => get_schema_for_path_mut_aux(&mut **s, path, Some(field), field_index),

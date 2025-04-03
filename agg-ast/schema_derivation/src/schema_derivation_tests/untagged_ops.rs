@@ -513,6 +513,7 @@ mod numeric_ops {
     test_derive_expression_schema!(
         multiply_nullable_long,
         expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
             Schema::Atomic(Atomic::Long),
             Schema::Atomic(Atomic::Null),
         ))),
@@ -532,7 +533,10 @@ mod numeric_ops {
     );
     test_derive_expression_schema!(
         multiply_long,
-        expected = Ok(Schema::Atomic(Atomic::Long)),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Long),
+        ))),
         input = r#"{"$multiply": [1, {"$numberLong": "1"}]}"#
     );
     test_derive_expression_schema!(
@@ -555,7 +559,11 @@ mod numeric_ops {
     );
     test_derive_expression_schema!(
         pow_decimal,
-        expected = Ok(Schema::Atomic(Atomic::Decimal)),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Decimal),
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Long),
+        ))),
         input = r#"{"$pow": [1, "$foo"]}"#,
         ref_schema = Schema::Atomic(Atomic::Decimal)
     );
@@ -566,12 +574,19 @@ mod numeric_ops {
     );
     test_derive_expression_schema!(
         pow_double,
-        expected = Ok(Schema::Atomic(Atomic::Double)),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Long),
+            Schema::Atomic(Atomic::Double),
+        ))),
         input = r#"{"$pow": [1, 2.0]}"#
     );
     test_derive_expression_schema!(
         pow_long,
-        expected = Ok(Schema::Atomic(Atomic::Long),),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Long),
+        ))),
         input = r#"{"$pow": [1, {"$numberLong": "1"}]}"#
     );
     test_derive_expression_schema!(
@@ -584,7 +599,10 @@ mod numeric_ops {
     );
     test_derive_expression_schema!(
         mod_decimal,
-        expected = Ok(Schema::Atomic(Atomic::Decimal)),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Decimal),
+        ))),
         input = r#"{"$mod": [1, "$foo"]}"#,
         ref_schema = Schema::Atomic(Atomic::Decimal)
     );
@@ -595,12 +613,18 @@ mod numeric_ops {
     );
     test_derive_expression_schema!(
         mod_double,
-        expected = Ok(Schema::Atomic(Atomic::Double)),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Double),
+        ))),
         input = r#"{"$mod": [1, 2.1]}"#
     );
     test_derive_expression_schema!(
         mod_long,
-        expected = Ok(Schema::Atomic(Atomic::Long)),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Long),
+        ))),
         input = r#"{"$mod": [3, {"$numberLong": "2"}]}"#
     );
     test_derive_expression_schema!(
@@ -624,6 +648,7 @@ mod numeric_ops {
     test_derive_expression_schema!(
         add_nullable_long,
         expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
             Schema::Atomic(Atomic::Long),
             Schema::Atomic(Atomic::Null),
         ))),
@@ -643,7 +668,10 @@ mod numeric_ops {
     );
     test_derive_expression_schema!(
         add_long,
-        expected = Ok(Schema::Atomic(Atomic::Long)),
+        expected = Ok(Schema::AnyOf(set!(
+            Schema::Atomic(Atomic::Integer),
+            Schema::Atomic(Atomic::Long),
+        ))),
         input = r#"{"$add": [1, {"$numberLong": "1"}]}"#
     );
     test_derive_expression_schema!(

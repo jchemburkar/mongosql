@@ -188,6 +188,30 @@ mod field_ref {
     );
 
     test_derive_expression_schema!(
+        nested_ref_not_present_but_additional_properties_true,
+        expected = Ok(Schema::Any),
+        input = r#""$foo.bar""#,
+        ref_schema = Schema::Document(Document {
+            keys: map! {},
+            additional_properties: true,
+            ..Default::default()
+        }),
+        variables = map!()
+    );
+
+    test_derive_expression_schema!(
+        nested_ref_not_present_but_additional_properties_true_two_level,
+        expected = Ok(Schema::Any),
+        input = r#""$foo.bar.baz""#,
+        ref_schema = Schema::Document(Document {
+            keys: map! {},
+            additional_properties: true,
+            ..Default::default()
+        }),
+        variables = map!()
+    );
+
+    test_derive_expression_schema!(
         ref_missing,
         expected = Ok(Schema::Missing),
         input = r#""$foo""#
@@ -352,7 +376,7 @@ mod array {
 
     test_derive_expression_schema!(
         empty_array,
-        expected = Ok(Schema::Array(Box::new(Schema::Unsat))),
+        expected = Ok(Schema::Array(Box::new(Schema::Any))),
         input = r#"[]"#
     );
 
