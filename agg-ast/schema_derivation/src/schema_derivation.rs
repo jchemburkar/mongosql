@@ -1,5 +1,5 @@
 use crate::{
-    array_element_schema_or_error, get_schema_for_path_mut, insert_required_key_into_document,
+    array_element_schema_or_error, get_schema_for_path, get_schema_for_path_mut, insert_required_key_into_document,
     promote_missing, remove_field, schema_difference, schema_for_bson, schema_for_type_numeric,
     schema_for_type_str, Error, MatchConstrainSchema, Result,
 };
@@ -435,7 +435,7 @@ impl DeriveSchema for Stage {
             project: &ProjectStage,
             state: &mut ResultSetState,
         ) -> Result<Schema> {
-            println!("{:?}", state.result_set_schema);
+            state.result_set_schema = promote_missing(&state.result_set_schema);
             // If this is an exclusion $project, we can remove the fields from the schema and
             // return
             if project.items.iter().all(|(k, p)| {
@@ -447,6 +447,8 @@ impl DeriveSchema for Stage {
                         k.split('.').map(|s| s.to_string()).collect(),
                     );
                 });
+                // undo the promotion of missing
+                state.result_set_schema = Schema::simplify(&state.result_set_schema);
                 return Ok(state.result_set_schema.to_owned());
             }
             // determine if the _id field should be included in the schema. This is the case, if the $project does not have _id: 0.
@@ -483,6 +485,8 @@ impl DeriveSchema for Stage {
                     keys.insert("_id".to_string(), id_value.clone());
                 }
             }
+            // undo the promotion of missing
+            state.result_set_schema = Schema::simplify(&state.result_set_schema);
             Ok(Schema::simplify(&Schema::Document(Document {
                 required: keys.keys().cloned().collect(),
                 keys,
@@ -890,7 +894,7 @@ impl DeriveSchema for Expression {
                 if get_schema_for_path_mut(current_schema, vec![path[0].clone()]) == Some(&mut Schema::Any) {
                     return Ok(Schema::Any);
                 }
-                let schema = get_schema_for_path_mut(current_schema, path);
+                let schema = get_schema_for_path(current_schema.clone(), path);
                 match schema {
                     Some(schema) => Ok(schema.clone()),
                     // Unknown fields actually have the Schema Missing, while unknown variables are
@@ -1059,7 +1063,8 @@ impl DeriveSchema for TaggedOperator {
                             .map_err(|_| Error::InvalidConvertTypeValue(decimal_string))?;
                         schema_for_type_numeric(decimal_as_double as i32)
                     }
-                    // unfortunately, convert can take any expression as a to type. So
+                    // unfortunately, convert can take any expression as a to type. We use
+                    // the full set of to types when we cant statically determine the output
                     _ => Schema::AnyOf(set!(
                         Schema::Atomic(Atomic::Integer),
                         Schema::Atomic(Atomic::Double),
@@ -2201,7 +2206,7 @@ impl DeriveSchema for UntaggedOperator {
                         }
                     }
                 }).collect();
-
+                println!("{:?}", arg_schemas);
                 Ok(Schema::simplify(&Schema::Document(arg_schemas?
                     .into_iter()
                     .fold(Document::empty(), |acc, arg_schema| {
@@ -2211,6 +2216,7 @@ impl DeriveSchema for UntaggedOperator {
                         let mut keys = acc.keys;
                         for (arg_key, mut arg_key_schema) in arg_schema.keys {
                             let current_key_schema = keys.get(&arg_key);
+                            println!("{:?} {:?} {:?}", arg_key, arg_key_schema, current_key_schema);
                             let schema_to_insert = if let Some(current_key_schema) = current_key_schema {
                                 if arg_key_schema.satisfies(&Schema::Missing) == Satisfaction::May {
                                     // If this key already appears in the accumulated schema _and_
