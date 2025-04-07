@@ -886,10 +886,10 @@ impl DeriveSchema for Expression {
                 let path = f.split(".").map(|s| s.to_string()).collect::<Vec<String>>();
                 // If the user has rebound the CURRENT variable, we should use that schema instead of the result set schema to find any
                 // path.
-                let current_schema = &mut Schema::simplify(state
+                let current_schema = state
                     .variables
                     .get_mut("CURRENT")
-                    .unwrap_or(&mut state.result_set_schema));
+                    .unwrap_or(&mut state.result_set_schema);
                 // if we have an Any schema, just short circuit and return any
                 if get_schema_for_path_mut(current_schema, vec![path[0].clone()]) == Some(&mut Schema::Any) {
                     return Ok(Schema::Any);
@@ -2206,7 +2206,6 @@ impl DeriveSchema for UntaggedOperator {
                         }
                     }
                 }).collect();
-                println!("{:?}", arg_schemas);
                 Ok(Schema::simplify(&Schema::Document(arg_schemas?
                     .into_iter()
                     .fold(Document::empty(), |acc, arg_schema| {
@@ -2216,7 +2215,6 @@ impl DeriveSchema for UntaggedOperator {
                         let mut keys = acc.keys;
                         for (arg_key, mut arg_key_schema) in arg_schema.keys {
                             let current_key_schema = keys.get(&arg_key);
-                            println!("{:?} {:?} {:?}", arg_key, arg_key_schema, current_key_schema);
                             let schema_to_insert = if let Some(current_key_schema) = current_key_schema {
                                 if arg_key_schema.satisfies(&Schema::Missing) == Satisfaction::May {
                                     // If this key already appears in the accumulated schema _and_

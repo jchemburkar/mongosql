@@ -175,7 +175,7 @@ pub(crate) fn get_schema_for_path(schema: Schema, path: Vec<String>) -> Option<S
                     (None, false) => {
                         return None;
                     }
-                    (None, true) => Schema::Any,
+                    (None, true) => {return Some(Schema::Any);}
                     (Some(s), _) => s.clone(),
                 }
             },
@@ -183,8 +183,10 @@ pub(crate) fn get_schema_for_path(schema: Schema, path: Vec<String>) -> Option<S
                 let types = ao
                     .iter()
                     .map(|ao_schema| get_schema_for_path(ao_schema.clone(), path[index..].to_vec()))
-                    .filter(|x| !x.is_none())
-                    .map(|x| x.unwrap())
+                    .map(|x| match x {
+                        None => Schema::Missing,
+                        Some(schema) => schema
+                    })
                     .collect::<BTreeSet<_>>();
                 if !types.is_empty() {
                     return Some(Schema::simplify(&Schema::AnyOf(types)));
