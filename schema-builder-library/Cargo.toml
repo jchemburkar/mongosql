@@ -14,9 +14,9 @@ futures = { workspace = true }
 mongodb = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-mongosql = { workspace = true }
-agg-ast = { workspace = true }
-schema_derivation = { workspace = true }
+mongosql = { path = "../mongosql" }
+agg-ast = { path = "../agg-ast/ast" }
+schema_derivation = { path = "../agg-ast/schema_derivation" }
 thiserror = { workspace = true }
 lazy_static = { workspace = true }
 glob = { workspace = true }
