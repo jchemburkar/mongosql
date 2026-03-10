@@ -12,6 +12,7 @@ members = [
     "mongosql-datastructures",
     "mongosql-c",
     "mongosql",
+    "schema-builder-library",
     "service",
     "test-utils",
     "usererrordisplay-impl",
