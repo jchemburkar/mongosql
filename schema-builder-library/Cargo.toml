@@ -1,0 +1,33 @@
+[package]
+name = "schema-builder-library"
+version = "0.0.0"
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "schema_builder_library"
+path = "src/lib.rs"
+
+[dependencies]
+futures = { workspace = true }
+mongodb = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+mongosql = { workspace = true }
+agg-ast = { workspace = true }
+schema_derivation = { workspace = true }
+thiserror = { workspace = true }
+lazy_static = { workspace = true }
+glob = { workspace = true }
+test-utils = { path = "../test-utils" }
+tracing = { workspace = true }
+bson.workspace = true
+async-trait = "0"
+
+[features]
+integration = []
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
