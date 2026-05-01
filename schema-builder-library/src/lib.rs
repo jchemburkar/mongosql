@@ -1,5 +1,4 @@
 use agg_ast::definitions::Namespace;
-use futures::future;
 use mongosql::schema::Schema;
 use result_set::ResultSet;
 use std::{
@@ -7,6 +6,7 @@ use std::{
     fmt::{self, Display, Formatter},
     sync::Arc,
 };
+use futures::future;
 use tokio::sync::RwLock;
 use tracing::{Level, debug, error, instrument, span, warn};
 
@@ -17,6 +17,9 @@ pub mod data_service;
 pub use data_service::{
     CollectionInfo, CollectionOptions, CollectionType, DataService, TimeSeriesOptions,
 };
+
+mod spawn;
+use spawn::{DataServiceBounds, join_parallel};
 
 #[cfg(all(feature = "native-client", feature = "wasm"))]
 compile_error!("`native-client` and `wasm` features are mutually exclusive");
@@ -159,8 +162,40 @@ impl Display for NamespaceType {
 ///
 /// This function parallelizes handling each database, collection, collection partition, and
 /// view by using asynchronous tokio tasks.
-#[instrument(name = "schema builder", level = "info")]
-pub async fn build_schema<S: DataService>(
+#[cfg(not(feature = "wasm"))]
+pub async fn build_schema<S: DataService + Send + Sync + 'static>(
+    options: BuilderOptions<S>,
+) -> Result<ResultSet, S::Error>
+where
+    S::Error: Send,
+{
+    build_schema_inner(options).await
+}
+
+/// build_schema is the entry point for the schema-builder-library. Given a [`BuilderOptions`]
+/// specifying various behaviors, this function builds schema for the appropriate namespaces of
+/// the provided MongoDB instance. Importantly, this function must be called in a tokio::runtime
+/// context since it accesses the current tokio runtime handle.
+///
+/// The function returns a [`ResultSet`] containing the derived schema for all matching namespaces.
+///
+/// For collections, this function produces a complete schema representing all data. It does
+/// this by using an algorithm based on partitioning the data, repeatedly querying each
+/// partition (in parallel) for documents that do not match the in-progress schema, and then
+/// unifying the schema for each partition.
+///
+/// For views, this function produces a best-effort schema based on sampling.
+///
+/// This function parallelizes handling each database, collection, collection partition, and
+/// view by using asynchronous tokio tasks.
+#[cfg(feature = "wasm")]
+pub async fn build_schema<S: DataService + 'static>(
+    options: BuilderOptions<S>,
+) -> Result<ResultSet, S::Error> {
+    build_schema_inner(options).await
+}
+
+async fn build_schema_inner<S: DataServiceBounds>(
     options: BuilderOptions<S>,
 ) -> Result<ResultSet, S::Error> {
     // Ensure that the `include_list` only contains valid patterns.
@@ -209,7 +244,7 @@ pub async fn build_schema<S: DataService>(
 }
 
 #[instrument(level = "debug", skip_all)]
-async fn process_databases<S: DataService>(
+async fn process_databases<S: DataServiceBounds>(
     options: BuilderOptions<S>,
     databases: Vec<String>,
 ) -> ResultSet {
@@ -288,9 +323,9 @@ async fn process_databases<S: DataService>(
     });
 
     // After spawning async tasks for each database, the final step is to wait
-    // for all of those task to finish by awaiting the result of join_all for
-    // all database task JoinHandles.
-    future::join_all(db_tasks).await;
+    // for all of those task to finish by awaiting the result of join_parallel for
+    // all database tasks.
+    join_parallel(db_tasks).await;
 
     let Some(arc) = Arc::into_inner(result_set) else {
         panic!("Unexpected error: References to result_set remain after all tasks completed");

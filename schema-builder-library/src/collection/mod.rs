@@ -9,12 +9,13 @@ use crate::{
     get_partitions,
     result_set::ShareableResultSet,
     schema::{derive_schema_for_partitions, derive_schema_for_view, initial_schema::InitialSchema},
+    spawn::{DataServiceBounds, join_parallel},
 };
 
 pub(crate) mod patterns;
 use agg_ast::Namespace;
 use bson::doc;
-use futures::{TryStreamExt as _, future};
+use futures::TryStreamExt as _;
 use mongosql::schema::Schema;
 use schema_derivation::{ResultSetState, derive_schema_for_pipeline};
 use std::{
@@ -114,12 +115,13 @@ impl DatabaseCollections {
     #[instrument(skip_all)]
     pub(crate) async fn process_collections(
         &self,
-        ctx: ContextHandle<impl DataService>,
+        ctx: ContextHandle<impl DataServiceBounds>,
         dry_run: bool,
         result_set: ShareableResultSet,
         task_semaphore: Arc<tokio::sync::Semaphore>,
     ) {
-        let tasks: Vec<_> = self
+        let db = self.db.clone();
+        let tasks = self
             .collections
             .iter()
             .chain(self.timeseries.iter())
@@ -127,25 +129,30 @@ impl DatabaseCollections {
             .map(|collection_info| {
                 let result_set = result_set.clone();
                 let task_semaphore = task_semaphore.clone();
+                let ctx = Arc::clone(&ctx);
+                let db = db.clone();
 
                 info!(name: "processing collection", collection = ?collection_info);
-                self.process_collection(
-                    Arc::clone(&ctx),
-                    dry_run,
-                    result_set,
-                    collection_info,
-                    task_semaphore,
-                )
-            })
-            .collect();
+                async move {
+                    DatabaseCollections::process_collection(
+                        db,
+                        ctx,
+                        dry_run,
+                        result_set,
+                        collection_info,
+                        task_semaphore,
+                    )
+                    .await
+                }
+            });
 
         // Wait for all collections to finish
-        future::join_all(tasks).await;
+        join_parallel(tasks).await;
     }
 
     async fn process_collection(
-        &self,
-        ctx: ContextHandle<impl DataService>,
+        db: String,
+        ctx: ContextHandle<impl DataServiceBounds>,
         dry_run: bool,
         result_set: ShareableResultSet,
         collection_info: CollectionInfo,
@@ -156,19 +163,19 @@ impl DatabaseCollections {
         if dry_run {
             debug!(
                 "Received namespace-only info for {db}.{collection}",
-                db = self.db,
+                db = db,
                 collection = collection_info.name,
             );
             result_set
                 .write()
                 .await
-                .mark_as_changed(self.db.clone(), collection_info.name.clone());
+                .mark_as_changed(db.clone(), collection_info.name.clone());
 
             return;
         }
 
         let namespace_info = NamespaceInfo {
-            db_name: self.db.clone(),
+            db_name: db.clone(),
             coll_or_view_name: collection_info.name.clone(),
             namespace_type: NamespaceType::Collection,
         };
@@ -176,23 +183,23 @@ impl DatabaseCollections {
         let initial_schema = result_set
             .read()
             .await
-            .get_schema_for_database(&self.db)
+            .get_schema_for_database(&db)
             .and_then(|catalog| {
                 catalog
                     .get(&collection_info.name)
                     .map(|c| Arc::clone(&c.namespace_schema))
             });
         if let Some(schema) = &initial_schema {
-            info!("Using initial schema: {}:{}", self.db, collection_info.name);
+            info!("Using initial schema: {}:{}", db, collection_info.name);
 
             if schema.is_unstable() {
                 result_set
                     .write()
                     .await
-                    .mark_unstable_initial_schema(self.db.clone(), collection_info.name.clone());
+                    .mark_unstable_initial_schema(db.clone(), collection_info.name.clone());
                 info!(
                     "Found unstable initial schema for namespace `{db}.{collection}`. Marking as unstable.",
-                    db = self.db,
+                    db = db,
                     collection = collection_info.name,
                 );
                 return;
@@ -200,7 +207,7 @@ impl DatabaseCollections {
         }
 
         info!(
-            db = self.db,
+            db = db,
             collection = collection_info.name,
             "Getting partitions"
         );
@@ -208,11 +215,11 @@ impl DatabaseCollections {
         // If we successfully retrieve partitions from the collection,
         // derive the schema for each partition.
         let Ok(partitioned_collection) =
-            get_partitions(ctx.service(), &self.db, collection_info.clone())
+            get_partitions(ctx.service(), &db, collection_info.clone())
                 .await
                 .inspect_err(|e| {
                     warn!(
-                        db = self.db,
+                        db = db,
                         collection = collection_info.name,
                         "could not get partitions: {e}"
                     )
@@ -223,7 +230,7 @@ impl DatabaseCollections {
 
         // Notify that we've gotten the partitions
         info!(
-            db = self.db,
+            db = db,
             collection = collection_info.name,
             "found {} partitions",
             partitioned_collection.partitions.len()
@@ -234,7 +241,7 @@ impl DatabaseCollections {
         // with the schema for each document in the partition.
         let schema = derive_schema_for_partitions(
             Arc::clone(&ctx),
-            &self.db,
+            &db,
             &collection_info.name,
             initial_schema,
             task_semaphore.clone(),
@@ -244,7 +251,7 @@ impl DatabaseCollections {
 
         let Some(schema) = schema else {
             warn!(
-                db = self.db,
+                db = db,
                 collection = collection_info.name,
                 "no schema derived, collection may be empty"
             );
@@ -273,12 +280,13 @@ impl DatabaseCollections {
     #[instrument(skip_all)]
     pub(crate) async fn process_views_with_catalog(
         &self,
-        ctx: ContextHandle<impl DataService>,
+        ctx: ContextHandle<impl DataServiceBounds>,
         dry_run: bool,
         result_set: ShareableResultSet,
         task_semaphore: Arc<tokio::sync::Semaphore>,
     ) {
-        let tasks: Vec<_> = self
+        let db = self.db.clone();
+        let tasks = self
             .views
             .as_slice()
             .iter()
@@ -287,28 +295,38 @@ impl DatabaseCollections {
                 let ctx = Arc::clone(&ctx);
                 let result_set = Arc::clone(&result_set);
                 let task_semaphore = task_semaphore.clone();
+                let db = db.clone();
 
                 info!(name: "processing view with catalog", view = ?collection_info);
-                self.process_view(ctx, dry_run, result_set, collection_info, task_semaphore)
-            })
-            .collect();
+                async move {
+                    DatabaseCollections::process_view(
+                        db,
+                        ctx,
+                        dry_run,
+                        result_set,
+                        collection_info,
+                        task_semaphore,
+                    )
+                    .await
+                }
+            });
 
-        future::join_all(tasks).await;
+        join_parallel(tasks).await;
     }
 
     async fn process_view(
-        &self,
-        ctx: ContextHandle<impl DataService>,
+        db: String,
+        ctx: ContextHandle<impl DataServiceBounds>,
         dry_run: bool,
         result_set: ShareableResultSet,
         collection_info: CollectionInfo,
         task_semaphore: Arc<tokio::sync::Semaphore>,
-    ) -> () {
+    ) {
         // Acquire a permit from the semaphore to limit concurrency
         #[allow(clippy::unwrap_used)]
         let _permit = task_semaphore.acquire().await.unwrap();
         let namespace_info = NamespaceInfo {
-            db_name: self.db.clone(),
+            db_name: db.clone(),
             coll_or_view_name: collection_info.name.clone(),
             namespace_type: NamespaceType::View,
         };
@@ -329,7 +347,7 @@ impl DatabaseCollections {
         }
 
         info!(
-            db = self.db,
+            db = db,
             collection = collection_info.name,
             "getting schema for view"
         );
@@ -345,7 +363,7 @@ impl DatabaseCollections {
             // and use it for schema derivation
             let namespaces = schema_derivation::get_namespaces_for_pipeline(
                 pipeline.clone(),
-                self.db.clone(),
+                db.clone(),
                 Some(collection_info.options.view_on.clone()),
             );
 
@@ -358,7 +376,7 @@ impl DatabaseCollections {
                     // Fall back to the old sampling method if no schema exists
                     fallback_view_task(
                         ctx.service(),
-                        &self.db,
+                        &db,
                         &collection_info,
                         namespace_info,
                         Arc::clone(&result_set),
@@ -374,7 +392,7 @@ impl DatabaseCollections {
                     // (e.g., the collection doesn't exist)
                     fallback_view_task(
                         ctx.service(),
-                        &self.db,
+                        &db,
                         &collection_info,
                         namespace_info,
                         Arc::clone(&result_set),
@@ -391,13 +409,13 @@ impl DatabaseCollections {
                         BTreeMap::new(),
                         |mut acc, (key, value)| {
                             acc.insert(
-                                Namespace::new(self.db.clone(), key.to_string()),
+                                Namespace::new(db.clone(), key.to_string()),
                                 Schema::clone(value),
                             );
                             acc
                         },
                     );
-                    let mut state = ResultSetState::new(&catalog, self.db.clone());
+                    let mut state = ResultSetState::new(&catalog, db.clone());
 
                     match derive_schema_for_pipeline(
                         pipeline,
@@ -406,7 +424,7 @@ impl DatabaseCollections {
                     ) {
                         Ok(schema) => {
                             info!(
-                                db = self.db,
+                                db = db,
                                 collection = collection_info.name,
                                 "Successfully derived schema for view"
                             );
@@ -421,7 +439,7 @@ impl DatabaseCollections {
                         Err(e) => {
                             fallback_view_task(
                                 ctx.service(),
-                                &self.db,
+                                &db,
                                 &collection_info,
                                 namespace_info,
                                 Arc::clone(&result_set),
@@ -436,7 +454,7 @@ impl DatabaseCollections {
         } else {
             fallback_view_task(
                 ctx.service(),
-                &self.db,
+                &db,
                 &collection_info,
                 namespace_info,
                 Arc::clone(&result_set),

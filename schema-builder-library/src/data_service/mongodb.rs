@@ -74,7 +74,7 @@ impl DataService for MongoDbDataService {
         coll_name: &str,
         pipeline: Vec<Document>,
         key_hint: Option<Document>,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>>, Self::Error> {
+    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error> {
         let collection = self
             .client
             .database(db_name)
@@ -95,7 +95,7 @@ impl DataService for MongoDbDataService {
         db_name: &str,
         coll_name: &str,
         filter: Document,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>>, Self::Error> {
+    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error> {
         let collection = self
             .client
             .database(db_name)

@@ -76,6 +76,17 @@ pub trait DataService {
     async fn list_collections(&self, db_name: &str) -> Result<Vec<CollectionInfo>, Self::Error>;
 
     /// Execute an aggregation pipeline on a collection.
+    #[cfg(not(feature = "wasm"))]
+    async fn aggregate(
+        &self,
+        db_name: &str,
+        coll_name: &str,
+        pipeline: Vec<Document>,
+        key_hint: Option<Document>,
+    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error>;
+
+    /// Execute an aggregation pipeline on a collection.
+    #[cfg(feature = "wasm")]
     async fn aggregate(
         &self,
         db_name: &str,
@@ -85,6 +96,16 @@ pub trait DataService {
     ) -> Result<impl Stream<Item = Result<Document, Self::Error>>, Self::Error>;
 
     /// Execute a find query on a collection.
+    #[cfg(not(feature = "wasm"))]
+    async fn find(
+        &self,
+        db_name: &str,
+        coll_name: &str,
+        filter: Document,
+    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error>;
+
+    /// Execute a find query on a collection.
+    #[cfg(feature = "wasm")]
     async fn find(
         &self,
         db_name: &str,

@@ -13,6 +13,7 @@ use crate::{DataService, partitioning::Partition};
 use crate::{
     Error, Result, VIEW_SAMPLE_SIZE, data_service::CollectionInfo,
     partitioning::PartitionedCollection,
+    spawn::DataServiceBounds,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -44,7 +45,7 @@ pub const PARTITION_DOCS_PER_ITERATION: i64 = 20;
 /// The results of each partition are unioned together to produce the schema of the entire
 /// collection.
 #[instrument(level = "trace", skip_all)]
-pub(crate) async fn derive_schema_for_partitions<S: DataService>(
+pub(crate) async fn derive_schema_for_partitions<S: DataServiceBounds>(
     ctx: ContextHandle<S>,
     db: &str,
     collection: &str,
@@ -52,6 +53,9 @@ pub(crate) async fn derive_schema_for_partitions<S: DataService>(
     task_semaphore: std::sync::Arc<tokio::sync::Semaphore>,
     partitioned_collection: PartitionedCollection,
 ) -> Option<Schema> {
+    let db = db.to_string();
+    let collection = collection.to_string();
+
     let partition_tasks = partitioned_collection
         .partitions
         .into_iter()
@@ -60,6 +64,8 @@ pub(crate) async fn derive_schema_for_partitions<S: DataService>(
             let ctx = Arc::clone(&ctx);
             let initial_schema_doc = initial_schema_doc.clone();
             let task_semaphore = task_semaphore.clone();
+            let db = db.clone();
+            let collection = collection.clone();
 
             let single_partition = SinglePartition {
                 partition,
@@ -81,8 +87,8 @@ pub(crate) async fn derive_schema_for_partitions<S: DataService>(
                 // consider rerunning the builder if they wish.
                 derive_schema_for_partition(
                     ctx.service(),
-                    db,
-                    collection,
+                    &db,
+                    &collection,
                     initial_schema_doc,
                     single_partition,
                 )
@@ -104,8 +110,24 @@ pub(crate) async fn derive_schema_for_partitions<S: DataService>(
     // a mutable Schema value that is guarded by a lock. The overhead of locking
     // and unioning per thread is likely equivalent to the more straightforward
     // wait-and-then-union solution we have here.
-    future::join_all(partition_tasks)
-        .await
+    //
+    // On non-WASM targets, each partition is spawned as an independent tokio task
+    // so the thread pool can drive them in parallel. On WASM, join_all runs them
+    // cooperatively within the current task.
+    #[cfg(not(feature = "wasm"))]
+    let schemas = {
+        let handles: Vec<_> = partition_tasks.map(tokio::spawn).collect();
+        future::join_all(handles)
+            .await
+            .into_iter()
+            .map(|r| r.expect("partition task panicked"))
+            .collect::<Vec<_>>()
+    };
+
+    #[cfg(feature = "wasm")]
+    let schemas = future::join_all(partition_tasks).await;
+
+    schemas
         .into_iter()
         .reduce(|full_coll_schema, part_schema| full_coll_schema.union(&part_schema))
 }
