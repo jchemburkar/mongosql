@@ -163,12 +163,9 @@ impl Display for NamespaceType {
 /// This function parallelizes handling each database, collection, collection partition, and
 /// view by using asynchronous tokio tasks.
 #[cfg(not(feature = "wasm"))]
-pub async fn build_schema<S: DataService + Send + Sync + 'static>(
+pub async fn build_schema<S: DataService<Error: Send> + Send + Sync + 'static>(
     options: BuilderOptions<S>,
-) -> Result<ResultSet, S::Error>
-where
-    S::Error: Send,
-{
+) -> Result<ResultSet, S::Error> {
     build_schema_inner(options).await
 }
 

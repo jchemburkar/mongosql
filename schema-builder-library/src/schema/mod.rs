@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bson::{Document, doc};
-use futures::{TryStreamExt as _, future};
+use futures::TryStreamExt as _;
 use mongosql::schema::Schema;
 use schema_derivation::schema_for_document;
 use tracing::{info, instrument, warn};
@@ -13,7 +13,7 @@ use crate::{DataService, partitioning::Partition};
 use crate::{
     Error, Result, VIEW_SAMPLE_SIZE, data_service::CollectionInfo,
     partitioning::PartitionedCollection,
-    spawn::DataServiceBounds,
+    spawn::{DataServiceBounds, join_parallel},
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -114,18 +114,7 @@ pub(crate) async fn derive_schema_for_partitions<S: DataServiceBounds>(
     // On non-WASM targets, each partition is spawned as an independent tokio task
     // so the thread pool can drive them in parallel. On WASM, join_all runs them
     // cooperatively within the current task.
-    #[cfg(not(feature = "wasm"))]
-    let schemas = {
-        let handles: Vec<_> = partition_tasks.map(tokio::spawn).collect();
-        future::join_all(handles)
-            .await
-            .into_iter()
-            .map(|r| r.expect("partition task panicked"))
-            .collect::<Vec<_>>()
-    };
-
-    #[cfg(feature = "wasm")]
-    let schemas = future::join_all(partition_tasks).await;
+    let schemas = join_parallel(partition_tasks).await;
 
     schemas
         .into_iter()
