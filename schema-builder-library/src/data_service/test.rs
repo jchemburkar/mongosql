@@ -1,10 +1,9 @@
 use std::{collections::HashMap, convert::Infallible};
 
 use bson::Document;
-use futures::Stream;
 
 use crate::data_service::{
-    CollectionInfo, CollectionOptions, CollectionType, DataService, TimeSeriesOptions,
+    CollectionInfo, CollectionOptions, CollectionType, DataService, ServiceStream, TimeSeriesOptions,
 };
 
 /// A configurable in-memory implementation of [`DataService`] for use in tests.
@@ -31,14 +30,13 @@ impl DataService for MockDataService {
         Ok(self.collections.get(db_name).cloned().unwrap_or_default())
     }
 
-    #[cfg(not(feature = "wasm"))]
     async fn aggregate(
         &self,
         db_name: &str,
         coll_name: &str,
         _pipeline: Vec<Document>,
         _hint: Option<Document>,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error> {
+    ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let results = self
             .documents
             .get(&format!("{db_name}.{coll_name}"))
@@ -49,37 +47,15 @@ impl DataService for MockDataService {
         // wrapped `Result` here.
         let results: Vec<_> = results.into_iter().map(Ok).collect();
 
-        Ok(futures::stream::iter(results))
+        Ok(Box::pin(futures::stream::iter(results)))
     }
 
-    #[cfg(feature = "wasm")]
-    async fn aggregate(
-        &self,
-        db_name: &str,
-        coll_name: &str,
-        _pipeline: Vec<Document>,
-        _hint: Option<Document>,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>>, Self::Error> {
-        let results = self
-            .documents
-            .get(&format!("{db_name}.{coll_name}"))
-            .cloned()
-            .unwrap_or_default();
-
-        // The cursor returns results, so we map the infallible documents to a
-        // wrapped `Result` here.
-        let results: Vec<_> = results.into_iter().map(Ok).collect();
-
-        Ok(futures::stream::iter(results))
-    }
-
-    #[cfg(not(feature = "wasm"))]
     async fn find(
         &self,
         db_name: &str,
         coll_name: &str,
         _filter: Document,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error> {
+    ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let results = self
             .documents
             .get(&format!("{db_name}.{coll_name}"))
@@ -90,27 +66,7 @@ impl DataService for MockDataService {
         // wrapped `Result` here.
         let results: Vec<_> = results.into_iter().map(Ok).collect();
 
-        Ok(futures::stream::iter(results))
-    }
-
-    #[cfg(feature = "wasm")]
-    async fn find(
-        &self,
-        db_name: &str,
-        coll_name: &str,
-        _filter: Document,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>>, Self::Error> {
-        let results = self
-            .documents
-            .get(&format!("{db_name}.{coll_name}"))
-            .cloned()
-            .unwrap_or_default();
-
-        // The cursor returns results, so we map the infallible documents to a
-        // wrapped `Result` here.
-        let results: Vec<_> = results.into_iter().map(Ok).collect();
-
-        Ok(futures::stream::iter(results))
+        Ok(Box::pin(futures::stream::iter(results)))
     }
 }
 

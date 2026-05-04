@@ -1,9 +1,8 @@
 use bson::Document;
-use futures::Stream;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
-use super::{CollectionInfo, DataService};
+use super::{CollectionInfo, DataService, ServiceStream};
 
 /// Error type for [`WasmDataService`] operations.
 #[derive(Debug, thiserror::Error)]
@@ -106,7 +105,7 @@ impl DataService for WasmDataService {
         coll_name: &str,
         pipeline: Vec<Document>,
         hint: Option<Document>,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>>, Self::Error> {
+    ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
         let pipeline_js = pipeline
             .serialize(&serializer)
@@ -124,7 +123,7 @@ impl DataService for WasmDataService {
             .await
             .map_err(|e| WasmDataServiceError::Query(format!("{e:?}")))?;
 
-        Ok(futures::stream::try_unfold(
+        Ok(Box::pin(futures::stream::try_unfold(
             js_cursor,
             |cursor| async move {
                 let next = cursor
@@ -136,7 +135,7 @@ impl DataService for WasmDataService {
 
                 Ok(Some((deserialized, cursor)))
             },
-        ))
+        )))
     }
 
     async fn find(
@@ -144,7 +143,7 @@ impl DataService for WasmDataService {
         db_name: &str,
         coll_name: &str,
         filter: Document,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>>, Self::Error> {
+    ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
         let filter_js = filter
             .serialize(&serializer)
@@ -156,7 +155,7 @@ impl DataService for WasmDataService {
             .await
             .map_err(|e| WasmDataServiceError::Query(format!("{e:?}")))?;
 
-        Ok(futures::stream::try_unfold(
+        Ok(Box::pin(futures::stream::try_unfold(
             js_cursor,
             |cursor| async move {
                 let next = cursor
@@ -168,6 +167,6 @@ impl DataService for WasmDataService {
 
                 Ok(Some((deserialized, cursor)))
             },
-        ))
+        )))
     }
 }

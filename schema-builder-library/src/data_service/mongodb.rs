@@ -1,10 +1,12 @@
-use futures::{Stream, TryStreamExt};
+use futures::TryStreamExt;
 use mongodb::{
     Client, bson::Document, options::Hint, results::CollectionType as DriverCollectionType,
 };
 use tracing::warn;
 
-use super::{CollectionInfo, CollectionOptions, CollectionType, DataService, TimeSeriesOptions};
+use super::{
+    CollectionInfo, CollectionOptions, CollectionType, DataService, ServiceStream, TimeSeriesOptions,
+};
 
 impl TryFrom<DriverCollectionType> for CollectionType {
     type Error = DriverCollectionType;
@@ -74,7 +76,7 @@ impl DataService for MongoDbDataService {
         coll_name: &str,
         pipeline: Vec<Document>,
         key_hint: Option<Document>,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error> {
+    ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let collection = self
             .client
             .database(db_name)
@@ -87,7 +89,7 @@ impl DataService for MongoDbDataService {
             cursor = cursor.hint(Hint::Keys(hint))
         };
 
-        cursor.await
+        Ok(Box::pin(cursor.await?))
     }
 
     async fn find(
@@ -95,12 +97,12 @@ impl DataService for MongoDbDataService {
         db_name: &str,
         coll_name: &str,
         filter: Document,
-    ) -> Result<impl Stream<Item = Result<Document, Self::Error>> + Send, Self::Error> {
+    ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let collection = self
             .client
             .database(db_name)
             .collection::<Document>(coll_name);
 
-        collection.find(filter).await
+        Ok(Box::pin(collection.find(filter).await?))
     }
 }
