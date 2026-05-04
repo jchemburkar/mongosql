@@ -124,8 +124,8 @@ impl DatabaseCollections {
             .collections
             .iter()
             .chain(self.timeseries.iter())
-            .cloned()
             .map(|collection_info| {
+                let collection_info = collection_info.clone();
                 let result_set = result_set.clone();
                 let task_semaphore = task_semaphore.clone();
                 let ctx = Arc::clone(&ctx);
@@ -287,10 +287,9 @@ impl DatabaseCollections {
         let db = self.db.clone();
         let tasks = self
             .views
-            .as_slice()
             .iter()
-            .cloned()
             .map(|collection_info| {
+                let collection_info = collection_info.clone();
                 let ctx = Arc::clone(&ctx);
                 let result_set = Arc::clone(&result_set);
                 let task_semaphore = task_semaphore.clone();

@@ -35,7 +35,7 @@ impl DataService for MockDataService {
         db_name: &str,
         coll_name: &str,
         _pipeline: Vec<Document>,
-        _hint: Option<Document>,
+        _key_hint: Option<Document>,
     ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let results = self
             .documents

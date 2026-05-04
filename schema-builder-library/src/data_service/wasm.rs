@@ -104,13 +104,13 @@ impl DataService for WasmDataService {
         db_name: &str,
         coll_name: &str,
         pipeline: Vec<Document>,
-        hint: Option<Document>,
+        key_hint: Option<Document>,
     ) -> Result<ServiceStream<Self::Error>, Self::Error> {
         let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
         let pipeline_js = pipeline
             .serialize(&serializer)
             .map_err(|e| WasmDataServiceError::Serialization(e.to_string()))?;
-        let hint_js = hint
+        let hint_js = key_hint
             .map(|h| {
                 h.serialize(&serializer)
                     .map_err(|e| WasmDataServiceError::Serialization(e.to_string()))
@@ -123,19 +123,7 @@ impl DataService for WasmDataService {
             .await
             .map_err(|e| WasmDataServiceError::Query(format!("{e:?}")))?;
 
-        Ok(Box::pin(futures::stream::try_unfold(
-            js_cursor,
-            |cursor| async move {
-                let next = cursor
-                    .next()
-                    .await
-                    .map_err(|e| WasmDataServiceError::Query(format!("{e:?}")))?;
-                let deserialized = serde_wasm_bindgen::from_value(next)
-                    .map_err(|e| WasmDataServiceError::Deserialization(e.to_string()))?;
-
-                Ok(Some((deserialized, cursor)))
-            },
-        )))
+        Ok(js_cursor_into_stream(js_cursor))
     }
 
     async fn find(
@@ -155,18 +143,25 @@ impl DataService for WasmDataService {
             .await
             .map_err(|e| WasmDataServiceError::Query(format!("{e:?}")))?;
 
-        Ok(Box::pin(futures::stream::try_unfold(
-            js_cursor,
-            |cursor| async move {
-                let next = cursor
-                    .next()
-                    .await
-                    .map_err(|e| WasmDataServiceError::Query(format!("{e:?}")))?;
-                let deserialized = serde_wasm_bindgen::from_value(next)
-                    .map_err(|e| WasmDataServiceError::Deserialization(e.to_string()))?;
-
-                Ok(Some((deserialized, cursor)))
-            },
-        )))
+        Ok(js_cursor_into_stream(js_cursor))
     }
+}
+
+/// Converts a [`JsCursor`] into a [`ServiceStream`] of BSON [`Document`]s.
+///
+/// Each call to `cursor.next()` that returns `undefined` terminates the stream cleanly.
+fn js_cursor_into_stream(cursor: JsCursor) -> ServiceStream<WasmDataServiceError> {
+    Box::pin(futures::stream::try_unfold(cursor, |cursor| async move {
+        let next = cursor
+            .next()
+            .await
+            .map_err(|e| WasmDataServiceError::Query(format!("{e:?}")))?;
+        // `undefined` signals end-of-stream per the SqlCursor interface contract.
+        if next.is_undefined() {
+            return Ok(None);
+        }
+        let doc: Document = serde_wasm_bindgen::from_value(next)
+            .map_err(|e| WasmDataServiceError::Deserialization(e.to_string()))?;
+        Ok(Some((doc, cursor)))
+    }))
 }

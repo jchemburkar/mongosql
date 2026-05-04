@@ -16,14 +16,10 @@ pub enum Error<ServiceError: core::error::Error> {
     MissingCountFieldForCollection(String),
     #[error("Collection {0} appears to be empty")]
     EmptyCollection(String),
-    #[error("NoIdInSample")]
-    NoIdInSample,
     #[error("Error in DataService: {0}")]
     DataServiceError(ServiceError),
     #[error("Schema Error {0}")]
     SchemaError(mongosql::schema::Error),
-    #[error("NoCollection {0}")]
-    NoCollection(String),
     #[error("Initial schema for {0} is not valid")]
     InitialSchemaError(String),
     #[error("Error when processing database pattern: {0}")]
@@ -32,8 +28,6 @@ pub enum Error<ServiceError: core::error::Error> {
         "The `{0}` contains the following invalid pattern: `{1}`. All patterns must be in `<database_pattern>.<collection_pattern>` format"
     )]
     IncludeOrExcludeListContainsInvalidPatterns(String, String),
-    #[error("{0}")]
-    ChannelClosed(String),
 }
 
 impl<S: core::error::Error> From<mongosql::schema::Error> for Error<S> {

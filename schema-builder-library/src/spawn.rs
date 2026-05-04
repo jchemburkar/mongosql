@@ -28,7 +28,10 @@ where
     futures::future::join_all(handles)
         .await
         .into_iter()
-        .map(|r| r.expect("task panicked"))
+        .map(|r| {
+            #[expect(clippy::expect_used, reason = "propagates panics from spawned tasks")]
+            r.expect("task panicked")
+        })
         .collect()
 }
 

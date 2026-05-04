@@ -37,6 +37,17 @@ export interface CollectionInfo {
 }
 
 /**
+ * SqlCursor interface for streaming database results.
+ *
+ * Implement this interface in your JavaScript/TypeScript code to provide a
+ * way to stream over database results.
+ */
+export interface SqlCursor {
+    /** Get the next document. Return undefined to signal end of stream. */
+    next(): Promise<BsonDocument | undefined>;
+}
+
+/**
  * SqlDataService interface for database operations.
  *
  * Implement this interface in your JavaScript/TypeScript code to provide
@@ -48,18 +59,7 @@ export interface SqlDataService {
     /** List all collections in a database */
     listCollections(dbName: string): Promise<CollectionInfo[]>;
     /** Execute an aggregation pipeline on a collection */
-    aggregate(dbName: string, collName: string, pipeline: BsonDocument[]): Promise<BsonDocument[]>;
+    aggregate(dbName: string, collName: string, pipeline: BsonDocument[], hint?: BsonDocument): Promise<SqlCursor>;
     /** Execute a find query on a collection */
-    find(dbName: string, collName: string, filter: BsonDocument): Promise<BsonDocument[]>;
-}
-
-/**
- * SqlCursor interface for streaming database results
- *
- * Implement this interface in your JavaScript/TypeScript code to provide a
- * way to stream over database results
- */
-export interface SqlCursor {
-    /** Get the next element in this cursor. Return undefined to signal the end of the stream */
-    next(): Promise<BsonDocument | undefined>;
+    find(dbName: string, collName: string, filter: BsonDocument): Promise<SqlCursor>;
 }
