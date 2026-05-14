@@ -8,11 +8,11 @@ use tracing::{info, instrument, warn};
 
 pub(crate) mod initial_schema;
 
-use crate::context::ContextHandle;
-use crate::{DataService, partitioning::Partition};
 use crate::{
-    Error, Result, VIEW_SAMPLE_SIZE, data_service::CollectionInfo,
-    partitioning::PartitionedCollection,
+    DataService, Error, Result, VIEW_SAMPLE_SIZE,
+    context::ContextHandle,
+    data_service::CollectionInfo,
+    partitioning::{Partition, PartitionedCollection},
     spawn::{DataServiceBounds, join_parallel},
 };
 
