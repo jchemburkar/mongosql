@@ -24,9 +24,7 @@ pub use data_service::{JsDataService, WasmDataService};
 pub mod client_util;
 
 mod consts;
-pub use consts::{DISALLOWED_DB_NAMES, VIEW_SAMPLE_SIZE};
-mod collection;
-pub use collection::{DatabaseCollections, query_for_initial_schemas};
+pub use consts::DISALLOWED_DB_NAMES;
 mod partitioning;
 pub use partitioning::{PartitionedCollection, get_partitions};
 mod errors;

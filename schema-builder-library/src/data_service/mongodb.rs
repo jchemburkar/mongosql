@@ -22,6 +22,7 @@ impl TryFrom<DriverCollectionType> for CollectionType {
 }
 
 /// [`DataService`] implementation backed by the Rust MongoDB driver.
+#[derive(Clone)]
 pub struct MongoDbDataService {
     client: Client,
 }

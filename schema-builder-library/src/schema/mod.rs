@@ -6,11 +6,8 @@ use mongosql::schema::Schema;
 use schema_derivation::schema_for_document;
 use tracing::{info, instrument, warn};
 
-pub(crate) mod initial_schema;
-
 use crate::{
-    DataService, Error, Result, VIEW_SAMPLE_SIZE,
-    data_service::CollectionInfo,
+    DataService, Error, Result, consts::VIEW_SAMPLE_SIZE, data_service::CollectionInfo,
     partitioning::Partition,
 };
 

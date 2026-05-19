@@ -17,8 +17,6 @@ mongosql = { workspace = true }
 agg-ast = { workspace = true }
 schema_derivation = { workspace = true }
 thiserror = { workspace = true }
-lazy_static = { workspace = true }
-glob = { workspace = true }
 tracing = { workspace = true }
 bson.workspace = true
 async-trait = { workspace = true }
@@ -28,7 +26,6 @@ tokio = { version = "1", default-features = false, optional = true }
 
 # native-client dependencies
 mongodb = { workspace = true, optional = true }
-test-utils = { path = "../test-utils", optional = true }
 
 # wasm dependencies
 wasm-bindgen = { version = "0.2", optional = true }
@@ -42,7 +39,7 @@ tracing-test = "0.2"
 [features]
 integration = []
 default = ["native-client"]
-native-client = ["dep:mongodb", "dep:test-utils", "dep:tokio", "tokio/full"]
+native-client = ["dep:mongodb", "dep:tokio", "tokio/full"]
 wasm = [
     "dep:console_error_panic_hook",
     "dep:serde-wasm-bindgen",

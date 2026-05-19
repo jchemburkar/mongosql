@@ -20,14 +20,6 @@ pub enum Error<ServiceError: core::error::Error> {
     DataServiceError(ServiceError),
     #[error("Schema Error {0}")]
     SchemaError(mongosql::schema::Error),
-    #[error("Initial schema for {0} is not valid")]
-    InitialSchemaError(String),
-    #[error("Error when processing database pattern: {0}")]
-    PatternError(#[from] crate::collection::patterns::Error),
-    #[error(
-        "The `{0}` contains the following invalid pattern: `{1}`. All patterns must be in `<database_pattern>.<collection_pattern>` format"
-    )]
-    IncludeOrExcludeListContainsInvalidPatterns(String, String),
 }
 
 impl<S: core::error::Error> From<mongosql::schema::Error> for Error<S> {
