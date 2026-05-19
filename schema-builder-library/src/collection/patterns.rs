@@ -26,7 +26,7 @@ impl DatabaseCollections {
     ///
     /// Glob syntax is supported, i.e. mydb.* will match all collections in mydb.
     #[instrument(level = "trace")]
-    pub(crate) fn should_consider(
+    pub fn should_consider(
         database: &str,
         collection_or_view: &CollectionInfo,
         include_list: &[glob::Pattern],
@@ -55,7 +55,7 @@ impl DatabaseCollections {
     /// If a non-dunderscore namespace is passed to this function, nothing is done, and
     /// `false` is returned.
     #[instrument(level = "trace")]
-    pub(crate) fn should_allow_dunderscore_namespace(
+    pub fn should_allow_dunderscore_namespace(
         database: &str,
         collection_or_view: &CollectionInfo,
         include_list: &[glob::Pattern],
@@ -138,7 +138,7 @@ impl DatabaseCollections {
     /// if the provided pattern allows for _any_ dunderscore-prefixed name, and then it checks if
     /// it allows for the provided `name`.
     #[instrument(level = "trace")]
-    pub(crate) fn pattern_allows_dunderscore_name(
+    pub fn pattern_allows_dunderscore_name(
         pattern_as_str: &str,
         name: &str,
     ) -> Result<bool, Error> {
