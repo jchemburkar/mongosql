@@ -20,7 +20,7 @@ pub struct SinglePartition {
     pub partition_ix: usize,
 }
 
-pub const PARTITION_DOCS_PER_ITERATION: i64 = 20;
+const PARTITION_DOCS_PER_ITERATION: i64 = 20;
 
 /// A utility function for deriving the schema for a single partition of a collection.
 #[instrument(level = "trace", skip_all)]
