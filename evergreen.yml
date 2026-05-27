@@ -713,7 +713,8 @@ functions:
         silent: true
         shell: bash
         working_dir: mongosql-rs
-        include_expansions_in_env: [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN]
+        include_expansions_in_env:
+          [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN]
         script: |
           # use AWS CLI to get the Kondukto API token from AWS Secrets Manager
           kondukto_token=$(aws secretsmanager get-secret-value --secret-id "kondukto-token" --region "us-east-1" --query 'SecretString' --output text)
@@ -729,10 +730,10 @@ functions:
         working_dir: mongosql-rs
         script: |
           ${prepare_shell}
-          
+
           SBOM_FINAL=${project_folder}.full.cdx.json
           echo "SBOM_FINAL = $SBOM_FINAL"
-          
+
           echo "-- Augmenting SBOM Lite --"
           docker run -i --platform="linux/amd64" --rm -v "$PWD":/pwd \
           --env-file ${workdir}/kondukto_credentials.env \
@@ -818,10 +819,10 @@ functions:
           semgrep --config p/rust --metrics=off --sarif --exclude "benchmark" --verbose --error --severity=ERROR --sarif-output=mongosql.sast.sarif > mongosql.sast.cmd.verbose.out 2>&1
           SCAN_RESULT=$?
           set -e
-          
-          # This adds a timestamp to the SAST file (i.e., this adds `"executionDateTime": <timestamp>` to `runs.invocations`). 
+
+          # This adds a timestamp to the SAST file (i.e., this adds `"executionDateTime": <timestamp>` to `runs.invocations`).
           jq --arg ts "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" '(.runs[] | select(has("invocations"))).invocations[0].executionDateTime = $ts' mongosql.sast.sarif > temp.sarif && mv temp.sarif mongosql.sast.sarif
-                    
+
           # Exit with a failure if the scan found an issue
           exit $SCAN_RESULT
 
@@ -1018,12 +1019,11 @@ tasks:
             --lib internal_integration_tests
             -- --test-threads=1
 
-  # SQL-3165: uncomment once BuilderOptions is generic over DataService
-  # - name: compile-schema-builder-library
-  #   commands:
-  #     - func: "install rust toolchain"
-  #     - func: "compile schema-builder-library"
-  #     - func: "upload schema-builder-library wasm"
+  - name: compile-schema-builder-library
+    commands:
+      - func: "install rust toolchain"
+      - func: "compile schema-builder-library"
+      - func: "upload schema-builder-library wasm"
 
   - name: release
     git_tag_only: true
@@ -1566,11 +1566,10 @@ buildvariants:
     tasks:
       - name: release
 
-  # SQL-3165: uncomment once BuilderOptions is generic over DataService
-  # - name: schema-builder-library
-  #   display_name: "Schema Builder Library"
-  #   run_on: [rhel80-small]
-  #   modules:
-  #     - sql-engines-common-test-infra
-  #   tasks:
-  #     - name: compile-schema-builder-library
+  - name: schema-builder-library
+    display_name: "Schema Builder Library"
+    run_on: [rhel80-small]
+    modules:
+      - sql-engines-common-test-infra
+    tasks:
+      - name: compile-schema-builder-library
